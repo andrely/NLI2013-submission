@@ -1,11 +1,13 @@
 import csv
 import logging
-from pandas import concat
+from numpy import mean, std
+from pandas import concat, pandas
 from sklearn.ensemble import RandomForestClassifier
 from sklearn.grid_search import GridSearchCV
+from sklearn.metrics import accuracy_score
 from sklearn.preprocessing import LabelEncoder
 from sklearn.svm import LinearSVC
-from data import load_nli_data, load_nli_frame, nli_test_dataset_fn, nli_test_index_fn
+from data import load_nli_data, load_nli_frame, nli_test_dataset_fn, nli_test_index_fn, folds_fn
 from features import DEFAULT_FEATURES, TOKEN_COLLOCATION_FEATURE_ID, FeaturePipeline, SUFFIX_COLLOCATION_FEATURE_ID, extract_suffixes
 
 jobs = 10
@@ -32,7 +34,11 @@ if __name__ == '__main__':
     dev_y = lb.transform(dev.cat.values)
     y_full = lb.transform(full.cat.values)
 
-    test = load_nli_frame(nli_test_dataset_fn, nli_test_index_fn, gold=False)
+    test = load_nli_frame(nli_test_dataset_fn, nli_test_index_fn)
+
+    ten_fold = concat((train, dev, test))
+    folds = pandas.io.parsers.read_csv(folds_fn, names=['file', 'fold', 'dataset'])
+    ten_fold = pandas.merge(ten_fold, folds, on=['file'], how='outer')
 
     # Best system
     feature_args = {'features': DEFAULT_FEATURES + [TOKEN_COLLOCATION_FEATURE_ID, SUFFIX_COLLOCATION_FEATURE_ID],
@@ -64,7 +70,37 @@ if __name__ == '__main__':
     predict(model, x_dev, dev, 'full_svm_dev.csv')
     predict(model, x_test, test, 'full_svm.csv')
 
-    x_test = x_dev= x_full = model = None
+    logging.info("doing 10-fold")
+
+    scores = []
+
+    for i in range(10):
+        fold = i + 1
+        logging.info("Fold %d" % i)
+
+        ex = FeaturePipeline(**feature_args)
+
+        tf_train = ten_fold[ten_fold.fold != i]
+        tf_x_train = ex.fit_transform(tf_train)
+        tf_y_train = lb.transform(tf_train.cat.values)
+
+        tf_test = ten_fold[ten_fold.fold == i]
+        tf_x_test = ex.transform(tf_test)
+        tf_y_test = lb.transform(tf_test.cat.values)
+
+        model = GridSearchCV(LinearSVC(), {'C': [0.001, 0.003, 0.01, 0.03, 0.1, 0.3, 1, 3, 10, 30, 100]},
+                             verbose=1, n_jobs=jobs)
+        model.fit(tf_x_train, tf_y_test)
+
+        out = model.predict(input)
+
+        score = accuracy_score(tf_y_test, out)
+        logging.info("Score %s" % score)
+        scores.append(score)
+
+    print "System 1 10-fold mean: %f, stddev: %f" % (mean(scores), std(scores))
+
+    x_test = x_dev= x_full = model = tf_train = tf_x_train = tf_y_train, tf_test, tf_x_test, tf_y_test =  None
 
     # min_df 5
     feature_args = {'features': DEFAULT_FEATURES + [TOKEN_COLLOCATION_FEATURE_ID, SUFFIX_COLLOCATION_FEATURE_ID],
@@ -99,7 +135,37 @@ if __name__ == '__main__':
     predict(model, x_dev, dev, 'min_5_svm_dev.csv')
     predict(model, x_test, test, 'min_5_svm.csv')
 
-    x_test = x_dev= x_full = model = None
+    logging.info("doing 10-fold")
+
+    scores = []
+
+    for i in range(10):
+        fold = i + 1
+        logging.info("Fold %d" % i)
+
+        ex = FeaturePipeline(**feature_args)
+
+        tf_train = ten_fold[ten_fold.fold != i]
+        tf_x_train = ex.fit_transform(tf_train)
+        tf_y_train = lb.transform(tf_train.cat.values)
+
+        tf_test = ten_fold[ten_fold.fold == i]
+        tf_x_test = ex.transform(tf_test)
+        tf_y_test = lb.transform(tf_test.cat.values)
+
+        model = GridSearchCV(LinearSVC(), {'C': [0.001, 0.003, 0.01, 0.03, 0.1, 0.3, 1, 3, 10, 30, 100]},
+                             verbose=1, n_jobs=jobs)
+        model.fit(tf_x_train, tf_y_test)
+
+        out = model.predict(input)
+
+        score = accuracy_score(tf_y_test, out)
+        logging.info("Score %s" % score)
+        scores.append(score)
+
+    print "System 2 10-fold mean: %f, stddev: %f" % (mean(scores), std(scores))
+
+    x_test = x_dev= x_full = model = tf_train = tf_x_train = tf_y_train, tf_test, tf_x_test, tf_y_test =  None
 
     # min_df 10
     feature_args = {'features': DEFAULT_FEATURES + [TOKEN_COLLOCATION_FEATURE_ID, SUFFIX_COLLOCATION_FEATURE_ID],
@@ -135,7 +201,37 @@ if __name__ == '__main__':
     predict(model, x_dev, dev, 'min_10_svm_dev.csv')
     predict(model, x_test, test, 'min_10_svm.csv')
 
-    x_test = x_dev= x_full = model = None
+    logging.info("doing 10-fold")
+
+    scores = []
+
+    for i in range(10):
+        fold = i + 1
+        logging.info("Fold %d" % i)
+
+        ex = FeaturePipeline(**feature_args)
+
+        tf_train = ten_fold[ten_fold.fold != i]
+        tf_x_train = ex.fit_transform(tf_train)
+        tf_y_train = lb.transform(tf_train.cat.values)
+
+        tf_test = ten_fold[ten_fold.fold == i]
+        tf_x_test = ex.transform(tf_test)
+        tf_y_test = lb.transform(tf_test.cat.values)
+
+        model = GridSearchCV(LinearSVC(), {'C': [0.001, 0.003, 0.01, 0.03, 0.1, 0.3, 1, 3, 10, 30, 100]},
+                             verbose=1, n_jobs=jobs)
+        model.fit(tf_x_train, tf_y_test)
+
+        out = model.predict(input)
+
+        score = accuracy_score(tf_y_test, out)
+        logging.info("Score %s" % score)
+        scores.append(score)
+
+    print "System 3 10-fold mean: %f, stddev: %f" % (mean(scores), std(scores))
+
+    x_test = x_dev= x_full = model = tf_train = tf_x_train = tf_y_train, tf_test, tf_x_test, tf_y_test =  None
 
     # mixed
     feature_args = {'features': DEFAULT_FEATURES + [TOKEN_COLLOCATION_FEATURE_ID, SUFFIX_COLLOCATION_FEATURE_ID],
@@ -171,66 +267,34 @@ if __name__ == '__main__':
     predict(model, x_dev, dev, 'min_mixed_svm_dev.csv')
     predict(model, x_test, test, 'min_mixed_svm.csv')
 
-    x_test = x_dev= x_full = model = None
+    logging.info("doing 10-fold")
 
+    scores = []
 
-    # # min_df 5 randomforest
-    # feature_args = {'features': DEFAULT_FEATURES + [TOKEN_COLLOCATION_FEATURE_ID],
-    #                 'token_vect_args': {'min_df': 5},
-    #                 'char_vect_args': {'min_df': 5},
-    #                 'token_coll_args': {'min_df': 5,
-    #                                     'window': 1,
-    #                                     'directional': True}}
+    for i in range(10):
+        fold = i + 1
+        logging.info("Fold %d" % i)
 
-    # ex = FeaturePipeline(**feature_args)
-    # ex.fit(train)
+        ex = FeaturePipeline(**feature_args)
 
-    # x_dev = ex.transform(dev).todense()
-    # x_full = ex.transform(full).todense()
-    # x_test = ex.transform(test).todense()
+        tf_train = ten_fold[ten_fold.fold != i]
+        tf_x_train = ex.fit_transform(tf_train)
+        tf_y_train = lb.transform(tf_train.cat.values)
 
-    # model = GridSearchCV(RandomForestClassifier(), {'n_estimators': [100, 500, 1000, 5000, 10000]},
-    #     verbose=1, n_jobs=jobs)
+        tf_test = ten_fold[ten_fold.fold == i]
+        tf_x_test = ex.transform(tf_test)
+        tf_y_test = lb.transform(tf_test.cat.values)
 
-    # model.fit(x_full, y_full)
+        model = GridSearchCV(LinearSVC(), {'C': [0.001, 0.003, 0.01, 0.03, 0.1, 0.3, 1, 3, 10, 30, 100]},
+                             verbose=1, n_jobs=jobs)
+        model.fit(tf_x_train, tf_y_test)
 
-    # params = model.best_params_
-    # logging.info("Using params %s scoring %s" % (params, model.best_score_))
+        out = model.predict(input)
 
-    # model = RandomForestClassifier(**params)
-    # model.fit(x_full, y_full)
+        score = accuracy_score(tf_y_test, out)
+        logging.info("Score %s" % score)
+        scores.append(score)
 
-    # predict(model, x_dev, 'min_5_rf_dev.csv')
-    # predict(model, x_test, 'min_5_rf.csv')
+    print "System 4 10-fold mean: %f, stddev: %f" % (mean(scores), std(scores))
 
-    # x_test = x_dev= x_full = model = None
-
-    # # min_df 10 randomforest
-    # feature_args = {'features': DEFAULT_FEATURES + [TOKEN_COLLOCATION_FEATURE_ID],
-    #                 'token_vect_args': {'min_df': 10},
-    #                 'char_vect_args': {'min_df': 10},
-    #                 'token_coll_args': {'min_df': 5,
-    #                                     'window': 1,
-    #                                     'directional': True}}
-
-    # ex = FeaturePipeline(**feature_args)
-    # ex.fit(train)
-
-    # x_dev = ex.transform(dev).todense()
-    # x_full = ex.transform(full).todense()
-    # x_test = ex.transform(test).todense()
-
-    # model = GridSearchCV(RandomForestClassifier(), {'n_estimators': [100, 500, 1000, 5000, 10000]},
-    #     verbose=1, n_jobs=jobs)
-    # model.fit(x_full, y_full)
-
-    # params = model.best_params_
-    # logging.info("Using params %s scoring %s" % (params, model.best_score_))
-
-    # model = RandomForestClassifier(**params)
-    # model.fit(x_full, y_full)
-
-    # predict(model, x_dev, 'min_10_rf_dev.csv')
-    # predict(model, x_test, 'min_10_rf.csv')
-
-    # x_test = x_dev= x_full = model = None
+    x_test = x_dev= x_full = model = tf_train = tf_x_train = tf_y_train, tf_test, tf_x_test, tf_y_test =  None
