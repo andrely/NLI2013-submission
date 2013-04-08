@@ -24,11 +24,13 @@ nli_test_data_path = os.path.join(nli_test_path, NLI_DATA_DIR)
 
 nli_train_index_fn = os.path.join(nli_train_path, 'index-training.csv')
 nli_dev_index_fn = os.path.join(nli_dev_path, 'index-dev.csv')
-nli_test_index_fn = os.path.join(nli_test_path, 'index-test.csv')
+nli_test_index_fn = os.path.join(nli_test_path, 'index_test_public_with_L1s.csv')
 
 nli_train_dataset_fn = 'nli_train_dataset.txt'
 nli_dev_dataset_fn = 'nli_dev_dataset.txt'
 nli_test_dataset_fn = 'nli_test_dataset.txt'
+
+folds_fn = os.path.join(nli_test_path, 'folds_ids_public.csv')
 
 def clean_nli_data(path, dataset_fn):
     logging.info("Preprocessing data set in %s" % path)
