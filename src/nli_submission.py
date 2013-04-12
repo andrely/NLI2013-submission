@@ -9,6 +9,7 @@ from sklearn.preprocessing import LabelEncoder
 from sklearn.svm import LinearSVC
 from data import load_nli_data, load_nli_frame, nli_test_dataset_fn, nli_test_index_fn, folds_fn
 from features import DEFAULT_FEATURES, TOKEN_COLLOCATION_FEATURE_ID, FeaturePipeline, SUFFIX_COLLOCATION_FEATURE_ID, extract_suffixes
+from ten_fold import get_folds_data
 
 jobs = 10
 
@@ -36,9 +37,7 @@ if __name__ == '__main__':
 
     test = load_nli_frame(nli_test_dataset_fn, nli_test_index_fn)
 
-    ten_fold = concat((train, dev, test))
-    folds = pandas.io.parsers.read_csv(folds_fn, names=['file', 'fold', 'dataset'])
-    ten_fold = pandas.merge(ten_fold, folds, on=['file'], how='outer')
+    folds_data = get_folds_data()
 
     # Best system
     feature_args = {'features': DEFAULT_FEATURES + [TOKEN_COLLOCATION_FEATURE_ID, SUFFIX_COLLOCATION_FEATURE_ID],
@@ -74,17 +73,14 @@ if __name__ == '__main__':
 
     scores = []
 
-    for i in range(10):
+    for i, (tf_train, tf_test) in enumerate(get_folds_data()):
         fold = i + 1
         logging.info("Fold %d" % i)
 
         ex = FeaturePipeline(**feature_args)
-
-        tf_train = ten_fold[ten_fold.fold != i]
         tf_x_train = ex.fit_transform(tf_train)
         tf_y_train = lb.transform(tf_train.cat.values)
 
-        tf_test = ten_fold[ten_fold.fold == i]
         tf_x_test = ex.transform(tf_test)
         tf_y_test = lb.transform(tf_test.cat.values)
 
@@ -139,17 +135,15 @@ if __name__ == '__main__':
 
     scores = []
 
-    for i in range(10):
+    for i, (tf_train, tf_test) in enumerate(get_folds_data()):
         fold = i + 1
         logging.info("Fold %d" % i)
 
         ex = FeaturePipeline(**feature_args)
 
-        tf_train = ten_fold[ten_fold.fold != i]
         tf_x_train = ex.fit_transform(tf_train)
         tf_y_train = lb.transform(tf_train.cat.values)
 
-        tf_test = ten_fold[ten_fold.fold == i]
         tf_x_test = ex.transform(tf_test)
         tf_y_test = lb.transform(tf_test.cat.values)
 
@@ -205,17 +199,15 @@ if __name__ == '__main__':
 
     scores = []
 
-    for i in range(10):
+    for i, (tf_train, tf_test) in enumerate(get_folds_data()):
         fold = i + 1
         logging.info("Fold %d" % i)
 
         ex = FeaturePipeline(**feature_args)
 
-        tf_train = ten_fold[ten_fold.fold != i]
         tf_x_train = ex.fit_transform(tf_train)
         tf_y_train = lb.transform(tf_train.cat.values)
 
-        tf_test = ten_fold[ten_fold.fold == i]
         tf_x_test = ex.transform(tf_test)
         tf_y_test = lb.transform(tf_test.cat.values)
 
@@ -271,17 +263,15 @@ if __name__ == '__main__':
 
     scores = []
 
-    for i in range(10):
+    for i, (tf_train, tf_test) in enumerate(get_folds_data()):
         fold = i + 1
         logging.info("Fold %d" % i)
 
         ex = FeaturePipeline(**feature_args)
 
-        tf_train = ten_fold[ten_fold.fold != i]
         tf_x_train = ex.fit_transform(tf_train)
         tf_y_train = lb.transform(tf_train.cat.values)
 
-        tf_test = ten_fold[ten_fold.fold == i]
         tf_x_test = ex.transform(tf_test)
         tf_y_test = lb.transform(tf_test.cat.values)
 
