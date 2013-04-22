@@ -1,17 +1,15 @@
 import csv
 import logging
+from optparse import OptionParser
 from numpy import mean, std
-from pandas import concat, pandas
-from sklearn.ensemble import RandomForestClassifier
+from pandas import concat
 from sklearn.grid_search import GridSearchCV
 from sklearn.metrics import accuracy_score
 from sklearn.preprocessing import LabelEncoder
 from sklearn.svm import LinearSVC
-from data import load_nli_data, load_nli_frame, nli_test_dataset_fn, nli_test_index_fn, folds_fn
+from data import load_nli_data, load_nli_frame, nli_test_dataset_fn, nli_test_index_fn
 from features import DEFAULT_FEATURES, TOKEN_COLLOCATION_FEATURE_ID, FeaturePipeline, SUFFIX_COLLOCATION_FEATURE_ID, extract_suffixes
 from ten_fold import get_folds_data
-
-jobs = 10
 
 def predict(model, input, input_frame, out_fn):
     out = model.predict(input)
@@ -25,6 +23,20 @@ def predict(model, input, input_frame, out_fn):
 
 if __name__ == '__main__':
     logging.basicConfig(level=logging.INFO)
+
+    parser = OptionParser()
+
+    parser.add_option("-n", "--n-jobs", help="Number of concurrent jobs run during CV and grid search.",
+                      default=1)
+    parser.add_option("-f", "--feature-sets", help="Comma separated list of feature ids",
+                      default="basic")
+
+    opts, args = parser.parse_args()
+
+    jobs = opts.n_jobs
+    logging.info("Running %d concurrent jobs")
+
+    feature_sets = opts.feature_sets.lower().split(",")
 
     train, dev = load_nli_data()
     full = concat((train, dev))
