@@ -8,8 +8,51 @@ from sklearn.metrics import accuracy_score
 from sklearn.preprocessing import LabelEncoder
 from sklearn.svm import LinearSVC
 from data import load_nli_data, load_nli_frame, nli_test_dataset_fn, nli_test_index_fn
-from features import DEFAULT_FEATURES, TOKEN_COLLOCATION_FEATURE_ID, FeaturePipeline, SUFFIX_COLLOCATION_FEATURE_ID, extract_suffixes
+from features import DEFAULT_FEATURES, TOKEN_COLLOCATION_FEATURE_ID, FeaturePipeline, SUFFIX_COLLOCATION_FEATURE_ID, extract_suffixes, TOKEN_FEATURE_ID
 from ten_fold import get_folds_data
+
+feature_set_map = {
+    'system1': {'features': DEFAULT_FEATURES + [TOKEN_COLLOCATION_FEATURE_ID, SUFFIX_COLLOCATION_FEATURE_ID],
+                'token_coll_args': {'window': 1,
+                                    'directional': True},
+                'char_vect_args': {'ngram_range': (3, 6)},
+                'suff_coll_args': {'preprocessor': lambda text: extract_suffixes(text, suff_len=4),
+                                   'directional': True,
+                                   'window': 1}},
+    'system2': {'features': DEFAULT_FEATURES + [TOKEN_COLLOCATION_FEATURE_ID, SUFFIX_COLLOCATION_FEATURE_ID],
+                'token_vect_args': {'min_df': 5},
+                'char_vect_args': {'min_df': 5, 'ngram_range': (3, 6)},
+                'token_coll_args': {'min_df': 5,
+                                    'window': 1,
+                                    'directional': True},
+                'suff_coll_args': {'min_df': 5,
+                                   'preprocessor': lambda text: extract_suffixes(text, suff_len=4),
+                                   'directional': True,
+                                   'window': 1}},
+    'system3': {'features': DEFAULT_FEATURES + [TOKEN_COLLOCATION_FEATURE_ID, SUFFIX_COLLOCATION_FEATURE_ID],
+                'token_vect_args': {'min_df': 10},
+                'char_vect_args': {'min_df': 10,
+                                   'ngram_range': (3, 6)},
+                'token_coll_args': {'min_df': 10,
+                                    'window': 1,
+                                    'directional': True},
+                'suff_coll_args': {'min_df': 10,
+                                   'preprocessor': lambda text: extract_suffixes(text, suff_len=4),
+                                   'directional': True,
+                                   'window': 1}},
+    'system4': {'features': DEFAULT_FEATURES + [TOKEN_COLLOCATION_FEATURE_ID, SUFFIX_COLLOCATION_FEATURE_ID],
+                'token_vect_args': {'min_df': 10},
+                'char_vect_args': {'min_df': 10,
+                                   'ngram_range': (1, 7)},
+                'token_coll_args': {'min_df': 5,
+                                    'window': 1,
+                                    'directional': True},
+                'suff_coll_args': {'min_df': 5,
+                                   'preprocessor': lambda text: extract_suffixes(text, suff_len=4),
+                                   'directional': True,
+                                   'window': 1}},
+    'basic': {'features': [TOKEN_FEATURE_ID]}
+}
 
 def predict(model, input, input_frame, out_fn):
     out = model.predict(input)
@@ -33,7 +76,7 @@ if __name__ == '__main__':
 
     opts, args = parser.parse_args()
 
-    jobs = opts.n_jobs
+    jobs = int(opts.n_jobs)
     logging.info("Running %d concurrent jobs")
 
     feature_sets = opts.feature_sets.lower().split(",")
@@ -51,252 +94,55 @@ if __name__ == '__main__':
 
     folds_data = get_folds_data()
 
-    # Best system
-    feature_args = {'features': DEFAULT_FEATURES + [TOKEN_COLLOCATION_FEATURE_ID, SUFFIX_COLLOCATION_FEATURE_ID],
-                    'token_coll_args': {'window': 1,
-                                        'directional': True},
-                    'char_vect_args': {'ngram_range': (3, 6)},
-                    'suff_coll_args': {'preprocessor': lambda text: extract_suffixes(text, suff_len=4),
-                                       'directional': True,
-                                       'window': 1}}
+    for feature_set in feature_sets:
+        if not feature_set_map.has_key(feature_set):
+            logging.warn("Feature set id %s not found" % feature_set)
+            continue
 
-    ex = FeaturePipeline(**feature_args)
-    ex.fit(train)
-
-    x_dev = ex.transform(dev)
-    x_full = ex.transform(full)
-    x_test = ex.transform(test)
-
-    model = GridSearchCV(LinearSVC(), {'C': [0.001, 0.003, 0.01, 0.03, 0.1, 0.3, 1, 3, 10, 30, 100]},
-        verbose=1, n_jobs=jobs)
-    model.fit(x_full, y_full)
-
-    params = model.best_params_
-    logging.info("Using params %s scoring %s" % (params, model.best_score_))
-    # INFO:root:Using params {'C': 0.3} scoring 0.817181352308
-     #INFO:root:Using params {'C': 1} scoring 0.827090137568
-    model = LinearSVC(**params)
-    model.fit(x_full, y_full)
-
-    predict(model, x_dev, dev, 'full_svm_dev.csv')
-    predict(model, x_test, test, 'full_svm.csv')
-
-    logging.info("doing 10-fold")
-
-    scores = []
-
-    for i, (tf_train, tf_test) in enumerate(get_folds_data()):
-        fold = i + 1
-        logging.info("Fold %d" % i)
+        feature_args = feature_set_map[feature_set]
 
         ex = FeaturePipeline(**feature_args)
-        tf_x_train = ex.fit_transform(tf_train)
-        tf_y_train = lb.transform(tf_train.cat.values)
+        ex.fit(train)
 
-        tf_x_test = ex.transform(tf_test)
-        tf_y_test = lb.transform(tf_test.cat.values)
-
-        model = GridSearchCV(LinearSVC(), {'C': [0.001, 0.003, 0.01, 0.03, 0.1, 0.3, 1, 3, 10, 30, 100]},
-                             verbose=1, n_jobs=jobs)
-        model.fit(tf_x_train, tf_y_test)
-
-        out = model.predict(input)
-
-        score = accuracy_score(tf_y_test, out)
-        logging.info("Score %s" % score)
-        scores.append(score)
-
-    print "System 1 10-fold mean: %f, stddev: %f" % (mean(scores), std(scores))
-
-    x_test = x_dev= x_full = model = tf_train = tf_x_train = tf_y_train, tf_test, tf_x_test, tf_y_test =  None
-
-    # min_df 5
-    feature_args = {'features': DEFAULT_FEATURES + [TOKEN_COLLOCATION_FEATURE_ID, SUFFIX_COLLOCATION_FEATURE_ID],
-                    'token_vect_args': {'min_df': 5},
-                    'char_vect_args': {'min_df': 5, 'ngram_range': (3, 6)},
-                    'token_coll_args': {'min_df': 5,
-                                        'window': 1,
-                                        'directional': True},
-                    'suff_coll_args': {'min_df': 5,
-                                       'preprocessor': lambda text: extract_suffixes(text, suff_len=4),
-                                       'directional': True,
-                                       'window': 1}}
-
-    ex = FeaturePipeline(**feature_args)
-    ex.fit(train)
-
-    x_dev = ex.transform(dev)
-    x_full = ex.transform(full)
-    x_test = ex.transform(test)
-
-    model = GridSearchCV(LinearSVC(), {'C': [0.001, 0.003, 0.01, 0.03, 0.1, 0.3, 1, 3, 10, 30, 100]},
-        verbose=1, n_jobs=jobs)
-    model.fit(x_full, y_full)
-
-    params = model.best_params_
-    logging.info("Using params %s scoring %s" % (params, model.best_score_))
-    # INFO:root:Using params {'C': 0.3} scoring 0.824272162333
-
-    model = LinearSVC(**params)
-    model.fit(x_full, y_full)
-
-    predict(model, x_dev, dev, 'min_5_svm_dev.csv')
-    predict(model, x_test, test, 'min_5_svm.csv')
-
-    logging.info("doing 10-fold")
-
-    scores = []
-
-    for i, (tf_train, tf_test) in enumerate(get_folds_data()):
-        fold = i + 1
-        logging.info("Fold %d" % i)
-
-        ex = FeaturePipeline(**feature_args)
-
-        tf_x_train = ex.fit_transform(tf_train)
-        tf_y_train = lb.transform(tf_train.cat.values)
-
-        tf_x_test = ex.transform(tf_test)
-        tf_y_test = lb.transform(tf_test.cat.values)
+        x_dev = ex.transform(dev)
+        x_full = ex.transform(full)
+        x_test = ex.transform(test)
 
         model = GridSearchCV(LinearSVC(), {'C': [0.001, 0.003, 0.01, 0.03, 0.1, 0.3, 1, 3, 10, 30, 100]},
-                             verbose=1, n_jobs=jobs)
-        model.fit(tf_x_train, tf_y_test)
+                     verbose=1, n_jobs=jobs)
+        model.fit(x_full, y_full)
 
-        out = model.predict(input)
+        params = model.best_params_
+        logging.info("Using params %s scoring %s" % (params, model.best_score_))
+        model = LinearSVC(**params)
+        model.fit(x_full, y_full)
 
-        score = accuracy_score(tf_y_test, out)
-        logging.info("Score %s" % score)
-        scores.append(score)
+        predict(model, x_dev, dev, feature_set + '_dev.csv')
+        predict(model, x_test, test, feature_set + '.csv')
 
-    print "System 2 10-fold mean: %f, stddev: %f" % (mean(scores), std(scores))
+        logging.info("doing 10-fold")
 
-    x_test = x_dev= x_full = model = tf_train = tf_x_train = tf_y_train, tf_test, tf_x_test, tf_y_test =  None
+        scores = []
 
-    # min_df 10
-    feature_args = {'features': DEFAULT_FEATURES + [TOKEN_COLLOCATION_FEATURE_ID, SUFFIX_COLLOCATION_FEATURE_ID],
-                    'token_vect_args': {'min_df': 10},
-                    'char_vect_args': {'min_df': 10,
-                                       'ngram_range': (3, 6)},
-                    'token_coll_args': {'min_df': 10,
-                                        'window': 1,
-                                        'directional': True},
-                    'suff_coll_args': {'min_df': 10,
-                                       'preprocessor': lambda text: extract_suffixes(text, suff_len=4),
-                                       'directional': True,
-                                       'window': 1}}
+        for i, (tf_train, tf_test) in enumerate(get_folds_data()):
+            fold = i + 1
+            logging.info("Fold %d" % i)
 
-    ex = FeaturePipeline(**feature_args)
-    ex.fit(train)
+            ex = FeaturePipeline(**feature_args)
+            tf_x_train = ex.fit_transform(tf_train)
+            tf_y_train = lb.transform(tf_train.cat.values)
 
-    x_dev = ex.transform(dev)
-    x_full = ex.transform(full)
-    x_test = ex.transform(test)
+            tf_x_test = ex.transform(tf_test)
+            tf_y_test = lb.transform(tf_test.cat.values)
 
-    model = GridSearchCV(LinearSVC(), {'C': [0.001, 0.003, 0.01, 0.03, 0.1, 0.3, 1, 3, 10, 30, 100]},
-        verbose=1, n_jobs=jobs)
-    model.fit(x_full, y_full)
+            model = GridSearchCV(LinearSVC(), {'C': [0.001, 0.003, 0.01, 0.03, 0.1, 0.3, 1, 3, 10, 30, 100]},
+                                 verbose=1, n_jobs=jobs)
+            model.fit(tf_x_train, tf_y_train)
 
-    params = model.best_params_
-    logging.info("Using params %s scoring %s" % (params, model.best_score_))
-    # INFO:root:Using params {'C': 0.3} scoring 0.822726674701
+            out = model.predict(tf_x_test)
 
-    model = LinearSVC(**params)
-    model.fit(x_full, y_full)
+            score = accuracy_score(tf_y_test, out)
+            logging.info("Score %s" % score)
+            scores.append(score)
 
-    predict(model, x_dev, dev, 'min_10_svm_dev.csv')
-    predict(model, x_test, test, 'min_10_svm.csv')
-
-    logging.info("doing 10-fold")
-
-    scores = []
-
-    for i, (tf_train, tf_test) in enumerate(get_folds_data()):
-        fold = i + 1
-        logging.info("Fold %d" % i)
-
-        ex = FeaturePipeline(**feature_args)
-
-        tf_x_train = ex.fit_transform(tf_train)
-        tf_y_train = lb.transform(tf_train.cat.values)
-
-        tf_x_test = ex.transform(tf_test)
-        tf_y_test = lb.transform(tf_test.cat.values)
-
-        model = GridSearchCV(LinearSVC(), {'C': [0.001, 0.003, 0.01, 0.03, 0.1, 0.3, 1, 3, 10, 30, 100]},
-                             verbose=1, n_jobs=jobs)
-        model.fit(tf_x_train, tf_y_test)
-
-        out = model.predict(input)
-
-        score = accuracy_score(tf_y_test, out)
-        logging.info("Score %s" % score)
-        scores.append(score)
-
-    print "System 3 10-fold mean: %f, stddev: %f" % (mean(scores), std(scores))
-
-    x_test = x_dev= x_full = model = tf_train = tf_x_train = tf_y_train, tf_test, tf_x_test, tf_y_test =  None
-
-    # mixed
-    feature_args = {'features': DEFAULT_FEATURES + [TOKEN_COLLOCATION_FEATURE_ID, SUFFIX_COLLOCATION_FEATURE_ID],
-                    'token_vect_args': {'min_df': 10},
-                    'char_vect_args': {'min_df': 10,
-                                       'ngram_range': (1, 7)},
-                    'token_coll_args': {'min_df': 5,
-                                        'window': 1,
-                                        'directional': True},
-                    'suff_coll_args': {'min_df': 5,
-                                       'preprocessor': lambda text: extract_suffixes(text, suff_len=4),
-                                       'directional': True,
-                                       'window': 1}}
-
-    ex = FeaturePipeline(**feature_args)
-    ex.fit(train)
-
-    x_dev = ex.transform(dev)
-    x_full = ex.transform(full)
-    x_test = ex.transform(test)
-
-    model = GridSearchCV(LinearSVC(), {'C': [0.001, 0.003, 0.01, 0.03, 0.1, 0.3, 1, 3, 10, 30, 100]},
-        verbose=1, n_jobs=jobs)
-    model.fit(x_full, y_full)
-
-    params = model.best_params_
-    logging.info("Using params %s scoring %s" % (params, model.best_score_))
-    # INFO:root:Using params {'C': 0.3} scoring 0.823635782156
-
-    model = LinearSVC(**params)
-    model.fit(x_full, y_full)
-
-    predict(model, x_dev, dev, 'min_mixed_svm_dev.csv')
-    predict(model, x_test, test, 'min_mixed_svm.csv')
-
-    logging.info("doing 10-fold")
-
-    scores = []
-
-    for i, (tf_train, tf_test) in enumerate(get_folds_data()):
-        fold = i + 1
-        logging.info("Fold %d" % i)
-
-        ex = FeaturePipeline(**feature_args)
-
-        tf_x_train = ex.fit_transform(tf_train)
-        tf_y_train = lb.transform(tf_train.cat.values)
-
-        tf_x_test = ex.transform(tf_test)
-        tf_y_test = lb.transform(tf_test.cat.values)
-
-        model = GridSearchCV(LinearSVC(), {'C': [0.001, 0.003, 0.01, 0.03, 0.1, 0.3, 1, 3, 10, 30, 100]},
-                             verbose=1, n_jobs=jobs)
-        model.fit(tf_x_train, tf_y_test)
-
-        out = model.predict(input)
-
-        score = accuracy_score(tf_y_test, out)
-        logging.info("Score %s" % score)
-        scores.append(score)
-
-    print "System 4 10-fold mean: %f, stddev: %f" % (mean(scores), std(scores))
-
-    x_test = x_dev= x_full = model = tf_train = tf_x_train = tf_y_train, tf_test, tf_x_test, tf_y_test =  None
+        print "System 1 10-fold mean: %f, stddev: %f" % (mean(scores), std(scores))
