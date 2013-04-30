@@ -7,7 +7,7 @@ from sklearn.grid_search import GridSearchCV
 from sklearn.metrics import accuracy_score
 from sklearn.preprocessing import LabelEncoder
 from sklearn.svm import LinearSVC
-from data import load_nli_data, load_nli_frame, nli_test_dataset_fn, nli_test_index_fn
+from data import load_nli_data, load_nli_frame, nli_test_index_fn, nli_test_path
 from features import DEFAULT_FEATURES, TOKEN_COLLOCATION_FEATURE_ID, FeaturePipeline, SUFFIX_COLLOCATION_FEATURE_ID, extract_suffixes, TOKEN_FEATURE_ID
 from ten_fold import get_folds_data
 
@@ -105,7 +105,7 @@ if __name__ == '__main__':
     opts, args = parser.parse_args()
 
     jobs = int(opts.n_jobs)
-    logging.info("Running %d concurrent jobs")
+    logging.info("Running %d concurrent jobs" % jobs)
 
     feature_sets = opts.feature_sets.lower().split(",")
     logging.info("Running feature sets %s" % ", ".join(feature_sets))
@@ -119,7 +119,7 @@ if __name__ == '__main__':
     dev_y = lb.transform(dev.cat.values)
     y_full = lb.transform(full.cat.values)
 
-    test = load_nli_frame(nli_test_dataset_fn, nli_test_index_fn)
+    test = load_nli_frame(nli_test_index_fn, dataset_path=nli_test_path)
 
     folds_data = get_folds_data()
 

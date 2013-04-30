@@ -5,8 +5,6 @@ import os
 
 import pandas
 
-from tools import get_root_path
-
 INDEX_NAMES = ['file', 'prompt', 'cat', 'proflevel']
 
 # root_path = get_root_path()
@@ -80,15 +78,20 @@ def clean_nli_data(path, dataset_fn):
 
             f_csv.writerow(row)
 
-def load_nli_frame(dataset_fn, index_fn, gold=True):
-    logging.info("Reading dataset from %s" % dataset_fn)
-    if not os.path.exists(dataset_fn):
-        logging.warn("Dataset does not exist %s" % dataset_fn)
-        raise RuntimeError
+def load_nli_frame(index_fn, dataset_fn=None, dataset_path=None, gold=True):
+    if not dataset_fn and not dataset_path:
+        raise ValueError
 
-    data = pandas.io.parsers.read_csv(dataset_fn, sep=",", quotechar='|',
-        names=['file', 'tokens'])
-    logging.info("%d rows read" % len(data))
+    if dataset_fn and dataset_path:
+        raise ValueError
+
+    data = None
+
+    if dataset_fn:
+        data = load_text_data_csv(dataset_fn)
+
+    if dataset_path:
+        data = load_text_data(dataset_path)
 
     logging.info("Reading metadata from %s" % index_fn)
     index_names = INDEX_NAMES
@@ -105,6 +108,41 @@ def load_nli_frame(dataset_fn, index_fn, gold=True):
 
     return data
 
+def load_text_data_csv(dataset_fn):
+    logging.info("Reading dataset from %s" % dataset_fn)
+    if not os.path.exists(dataset_fn):
+        logging.warn("Dataset does not exist %s" % dataset_fn)
+        raise RuntimeError
+
+    data = pandas.io.parsers.read_csv(dataset_fn, sep=",", quotechar='|',
+                                      names=['file', 'tokens'])
+    logging.info("%d rows read" % len(data))
+
+    return data
+
+def load_text_data(dataset_path):
+    text_fn_glob = os.path.join(dataset_path, os.path.join(NLI_DATA_DIR, '*.txt'))
+    logging.info("Reading dataset from %s" % text_fn_glob)
+    text_fns = glob(text_fn_glob)
+
+    data = []
+
+    for text_fn in text_fns:
+        filename = os.path.basename(text_fn)
+        text = ""
+
+        with open(text_fn, 'r') as f:
+            for line in f.readlines():
+                text += "<s>%s</s>n" % line.strip()
+
+        data.append((filename, text))
+
+    data = pandas.DataFrame(data, columns=['file', 'tokens'])
+
+    logging.info("%d rows read" % len(data))
+
+    return data
+
 def get_dev_split_indices(frame):
     train = frame.proflevel.index[frame.proflevel.apply(lambda x: isinstance(x, str))]
     dev = frame.proflevel.index[frame.proflevel.apply(lambda x: isinstance(x, float))]
@@ -112,7 +150,7 @@ def get_dev_split_indices(frame):
     return train, dev
 
 def load_nli_data():
-    train = load_nli_frame(nli_train_dataset_fn, nli_train_index_fn)
-    dev = load_nli_frame(nli_dev_dataset_fn, nli_dev_index_fn)
+    train = load_nli_frame(nli_train_index_fn, dataset_path=nli_train_path)
+    dev = load_nli_frame(nli_dev_index_fn, dataset_path=nli_dev_path)
 
     return train, dev
