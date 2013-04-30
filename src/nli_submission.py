@@ -64,6 +64,34 @@ def predict(model, input, input_frame, out_fn):
         for i, label in enumerate(out_label):
             csv_out.writerow([input_frame.file.ix[i], label])
 
+
+def do_fixed_folds():
+    logging.info("doing 10-fold")
+    scores = []
+    for i, (tf_train, tf_test) in enumerate(get_folds_data()):
+        fold = i + 1
+        logging.info("Fold %d" % fold)
+
+        ex = FeaturePipeline(**feature_args)
+        tf_x_train = ex.fit_transform(tf_train)
+        tf_y_train = lb.transform(tf_train.cat.values)
+
+        tf_x_test = ex.transform(tf_test)
+        tf_y_test = lb.transform(tf_test.cat.values)
+
+        model = GridSearchCV(LinearSVC(), {'C': [0.001, 0.003, 0.01, 0.03, 0.1, 0.3, 1, 3, 10, 30, 100]},
+                             verbose=1, n_jobs=jobs)
+        model.fit(tf_x_train, tf_y_train)
+
+        out = model.predict(tf_x_test)
+
+        score = accuracy_score(tf_y_test, out)
+        logging.info("Score %s" % score)
+        scores.append(score)
+
+    print "System 1 10-fold mean: %f, stddev: %f" % (mean(scores), std(scores))
+
+
 if __name__ == '__main__':
     logging.basicConfig(level=logging.INFO)
 
@@ -80,6 +108,7 @@ if __name__ == '__main__':
     logging.info("Running %d concurrent jobs")
 
     feature_sets = opts.feature_sets.lower().split(",")
+    logging.info("Running feature sets %s" % ", ".join(feature_sets))
 
     train, dev = load_nli_data()
     full = concat((train, dev))
@@ -120,29 +149,4 @@ if __name__ == '__main__':
         predict(model, x_dev, dev, feature_set + '_dev.csv')
         predict(model, x_test, test, feature_set + '.csv')
 
-        logging.info("doing 10-fold")
-
-        scores = []
-
-        for i, (tf_train, tf_test) in enumerate(get_folds_data()):
-            fold = i + 1
-            logging.info("Fold %d" % i)
-
-            ex = FeaturePipeline(**feature_args)
-            tf_x_train = ex.fit_transform(tf_train)
-            tf_y_train = lb.transform(tf_train.cat.values)
-
-            tf_x_test = ex.transform(tf_test)
-            tf_y_test = lb.transform(tf_test.cat.values)
-
-            model = GridSearchCV(LinearSVC(), {'C': [0.001, 0.003, 0.01, 0.03, 0.1, 0.3, 1, 3, 10, 30, 100]},
-                                 verbose=1, n_jobs=jobs)
-            model.fit(tf_x_train, tf_y_train)
-
-            out = model.predict(tf_x_test)
-
-            score = accuracy_score(tf_y_test, out)
-            logging.info("Score %s" % score)
-            scores.append(score)
-
-        print "System 1 10-fold mean: %f, stddev: %f" % (mean(scores), std(scores))
+        do_fixed_folds()
