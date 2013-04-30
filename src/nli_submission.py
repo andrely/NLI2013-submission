@@ -89,8 +89,7 @@ def do_fixed_folds():
         logging.info("Score %s" % score)
         scores.append(score)
 
-    print "System 1 10-fold mean: %f, stddev: %f" % (mean(scores), std(scores))
-
+    return scores
 
 if __name__ == '__main__':
     logging.basicConfig(level=logging.INFO)
@@ -149,4 +148,7 @@ if __name__ == '__main__':
         predict(model, x_dev, dev, feature_set + '_dev.csv')
         predict(model, x_test, test, feature_set + '.csv')
 
-        do_fixed_folds()
+        scores = do_fixed_folds()
+
+        print "%s 10-fold mean: %f, stddev: %f" % (feature_set, mean(scores), std(scores))
+
