@@ -152,10 +152,10 @@ def get_dev_split_indices(frame):
 
 def load_nli_data(root_path=ROOT_PATH):
     train = load_nli_frame(os.path.join(root_path, NLI_TRAIN_INDEX_FN),
-                           dataset_path=os.path.join(root_path, NLI_TRAIN_PATH))
+                           dataset_fn=os.path.join(root_path, NLI_TRAIN_DATASET_FN))
     dev = load_nli_frame(os.path.join(root_path, NLI_DEV_INDEX_FN),
-                         dataset_path=os.path.join(root_path, NLI_DEV_PATH))
+                         dataset_fn=os.path.join(root_path, NLI_DEV_DATASET_FN))
     test = load_nli_frame(os.path.join(root_path, NLI_TEST_INDEX_FN),
-                          dataset_path=os.path.join(root_path, NLI_TEST_PATH))
+                          dataset_fn=os.path.join(root_path, NLI_TEST_DATASET_FN))
 
     return train, dev, test
