@@ -9,6 +9,7 @@ from sklearn.grid_search import GridSearchCV
 from sklearn.metrics import accuracy_score
 from sklearn.preprocessing import LabelEncoder
 from sklearn.svm import LinearSVC
+from data import load_nli_data
 
 from features import DEFAULT_FEATURES, TOKEN_COLLOCATION_FEATURE_ID, FeaturePipeline, SUFFIX_COLLOCATION_FEATURE_ID, extract_suffixes, TOKEN_FEATURE_ID, \
     CHAR_FEATURE_ID
@@ -125,7 +126,7 @@ if __name__ == '__main__':
     feature_sets = opts.feature_sets.lower().split(",")
     logging.info("Running feature sets %s" % ", ".join(feature_sets))
 
-    train, dev, test = load_nli_data()
+    train, dev, test = load_nli_data(opts.data_path)
     full = concat((train, dev))
 
     lb = LabelEncoder()
