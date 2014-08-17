@@ -4,7 +4,7 @@ from data import load_nli_data, load_nli_frame, NLI_TEST_INDEX_FN, FOLDS_FN, ROO
 
 
 def get_folds_data(root_path=ROOT_PATH):
-    folds = pandas.io.parsers.read_csv(os.path.join(root_path, FOLDS_FN), names=['file', 'fold', 'dataset'])
+    folds = pandas.io.parsers.read_csv(os.path.join(root_path, NLI_TEST_PATH, FOLDS_FN), names=['file', 'fold', 'dataset'])
     train, dev, _ = load_nli_data()
     test_data = load_nli_frame(NLI_TEST_INDEX_FN, dataset_path=os.path.join(root_path, NLI_TEST_PATH))
     data = concat((train, dev, test_data))
