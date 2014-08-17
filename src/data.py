@@ -5,30 +5,31 @@ import os
 
 import pandas
 
+
 INDEX_NAMES = ['file', 'prompt', 'cat', 'proflevel']
 
 # root_path = get_root_path()
-root_path = "/Users/stinky/Work/ML/"
+ROOT_PATH = "/Users/stinky/Work/ML/data"
 
-nli_train_path = os.path.join(root_path, 'data/NLI_2013_Training_Data/')
-nli_dev_path = os.path.join(root_path, 'data/NLI_2013_Development_Data/')
-nli_test_path = os.path.join(root_path, 'data/NLI_2013_Test_Data/')
+NLI_TRAIN_PATH = 'NLI_2013_Training_Data/'
+NLI_DEV_PATH = 'NLI_2013_Development_Data/'
+NLI_TEST_PATH = 'NLI_2013_Test_Data/'
 
 NLI_DATA_DIR = 'tokenized'
 
-nli_train_data_path = os.path.join(nli_train_path, NLI_DATA_DIR)
-nli_dev_data_path = os.path.join(nli_dev_path, NLI_DATA_DIR)
-nli_test_data_path = os.path.join(nli_test_path, NLI_DATA_DIR)
+NLI_TRAIN_DATA_PATH = os.path.join(NLI_TRAIN_PATH, NLI_DATA_DIR)
+NLI_DEV_DATA_PATH = os.path.join(NLI_DEV_PATH, NLI_DATA_DIR)
+NLI_TEST_DATA_PATH = os.path.join(NLI_TEST_PATH, NLI_DATA_DIR)
 
-nli_train_index_fn = os.path.join(nli_train_path, 'index-training.csv')
-nli_dev_index_fn = os.path.join(nli_dev_path, 'index-dev.csv')
-nli_test_index_fn = os.path.join(nli_test_path, 'index_test_public_with_L1s.csv')
+NLI_TRAIN_INDEX_FN = os.path.join(NLI_TRAIN_PATH, 'index-training.csv')
+NLI_DEV_INDEX_FN = os.path.join(NLI_DEV_PATH, 'index-dev.csv')
+NLI_TEST_INDEX_FN = os.path.join(NLI_TEST_PATH, 'index_test_public_with_L1s.csv')
 
-nli_train_dataset_fn = 'nli_train_dataset.txt'
-nli_dev_dataset_fn = 'nli_dev_dataset.txt'
-nli_test_dataset_fn = 'nli_test_dataset.txt'
+NLI_TRAIN_DATASET_FN = 'nli_train_dataset.txt'
+NLI_DEV_DATASET_FN = 'nli_dev_dataset.txt'
+NLI_TEST_DATASET_FN = 'nli_test_dataset.txt'
 
-folds_fn = os.path.join(nli_test_path, 'folds_ids_public.csv')
+FOLDS_FN = os.path.join(NLI_TEST_PATH, 'folds_ids_public.csv')
 
 def clean_nli_data(path, dataset_fn):
     logging.info("Preprocessing data set in %s" % path)
@@ -149,8 +150,12 @@ def get_dev_split_indices(frame):
 
     return train, dev
 
-def load_nli_data():
-    train = load_nli_frame(nli_train_index_fn, dataset_path=nli_train_path)
-    dev = load_nli_frame(nli_dev_index_fn, dataset_path=nli_dev_path)
+def load_nli_data(root_path=ROOT_PATH):
+    train = load_nli_frame(os.path.join(root_path, NLI_TRAIN_INDEX_FN),
+                           dataset_path=os.path.join(root_path, NLI_TRAIN_PATH))
+    dev = load_nli_frame(os.path.join(root_path, NLI_DEV_INDEX_FN),
+                         dataset_path=os.path.join(root_path, NLI_DEV_PATH))
+    test = load_nli_frame(os.path.join(root_path, NLI_TEST_INDEX_FN),
+                          dataset_path=os.path.join(root_path, NLI_TEST_PATH))
 
-    return train, dev
+    return train, dev, test

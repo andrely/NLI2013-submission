@@ -1,15 +1,19 @@
 import csv
 import logging
 from optparse import OptionParser
+import os
+
 from numpy import mean, std
 from pandas import concat
 from sklearn.grid_search import GridSearchCV
 from sklearn.metrics import accuracy_score
 from sklearn.preprocessing import LabelEncoder
 from sklearn.svm import LinearSVC
-from data import load_nli_data, load_nli_frame, nli_test_index_fn, nli_test_path
-from features import DEFAULT_FEATURES, TOKEN_COLLOCATION_FEATURE_ID, FeaturePipeline, SUFFIX_COLLOCATION_FEATURE_ID, extract_suffixes, TOKEN_FEATURE_ID
+
+from features import DEFAULT_FEATURES, TOKEN_COLLOCATION_FEATURE_ID, FeaturePipeline, SUFFIX_COLLOCATION_FEATURE_ID, extract_suffixes, TOKEN_FEATURE_ID, \
+    CHAR_FEATURE_ID
 from ten_fold import get_folds_data
+
 
 feature_set_map = {
     'system1': {'features': DEFAULT_FEATURES + [TOKEN_COLLOCATION_FEATURE_ID, SUFFIX_COLLOCATION_FEATURE_ID],
@@ -51,7 +55,18 @@ feature_set_map = {
                                    'preprocessor': lambda text: extract_suffixes(text, suff_len=4),
                                    'directional': True,
                                    'window': 1}},
-    'basic': {'features': [TOKEN_FEATURE_ID]}
+    'basic': {'features': [TOKEN_FEATURE_ID]},
+
+    # basic features from best system 2
+    'char-ngram': {'features': [CHAR_FEATURE_ID],
+                   'char_vect_args': {'min_df': 5, 'ngram_range': (3, 6)}},
+    'lex-ngram': {'features': [TOKEN_FEATURE_ID],
+                  'token_vect_args': {'min_df': 5}},
+    'suff': {'features': [SUFFIX_COLLOCATION_FEATURE_ID],
+             'suff_coll_args': {'min_df': 5,
+                                'preprocessor': lambda text: extract_suffixes(text, suff_len=4),
+                                'directional': True,
+                                'window': 1}}
 }
 
 def predict(model, input, input_frame, out_fn):
@@ -100,6 +115,7 @@ if __name__ == '__main__':
                       default=1)
     parser.add_option("-f", "--feature-sets", help="Comma separated list of feature ids",
                       default="basic")
+    parser.add_option("-d", "--data-path", default=os.getcwd())
 
     opts, args = parser.parse_args()
 
@@ -109,7 +125,7 @@ if __name__ == '__main__':
     feature_sets = opts.feature_sets.lower().split(",")
     logging.info("Running feature sets %s" % ", ".join(feature_sets))
 
-    train, dev = load_nli_data()
+    train, dev, test = load_nli_data()
     full = concat((train, dev))
 
     lb = LabelEncoder()
@@ -117,8 +133,6 @@ if __name__ == '__main__':
     y_train = lb.transform(train.cat.values)
     dev_y = lb.transform(dev.cat.values)
     y_full = lb.transform(full.cat.values)
-
-    test = load_nli_frame(nli_test_index_fn, dataset_path=nli_test_path)
 
     folds_data = get_folds_data()
 

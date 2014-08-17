@@ -1,11 +1,12 @@
+import os
 from pandas import concat, pandas
-from data import load_nli_data, load_nli_frame, nli_test_index_fn, folds_fn, nli_test_path
+from data import load_nli_data, load_nli_frame, NLI_TEST_INDEX_FN, FOLDS_FN, ROOT_PATH, NLI_TEST_PATH
 
 
-def get_folds_data():
-    folds = pandas.io.parsers.read_csv(folds_fn, names=['file', 'fold', 'dataset'])
-    train, dev = load_nli_data()
-    test_data = load_nli_frame(nli_test_index_fn, dataset_path=nli_test_path)
+def get_folds_data(root_path=ROOT_PATH):
+    folds = pandas.io.parsers.read_csv(os.path.join(root_path, FOLDS_FN), names=['file', 'fold', 'dataset'])
+    train, dev, _ = load_nli_data()
+    test_data = load_nli_frame(NLI_TEST_INDEX_FN, dataset_path=os.path.join(root_path, NLI_TEST_PATH))
     data = concat((train, dev, test_data))
 
     folds_data = []
