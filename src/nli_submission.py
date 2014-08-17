@@ -163,7 +163,7 @@ if __name__ == '__main__':
         predict(model, x_dev, dev, feature_set + '_dev.csv')
         predict(model, x_test, test, feature_set + '.csv')
 
-        scores = do_fixed_folds(root_path=ROOT_PATH)
+        scores = do_fixed_folds(opts.data_path)
 
         print "%s 10-fold mean: %f, stddev: %f" % (feature_set, mean(scores), std(scores))
 
