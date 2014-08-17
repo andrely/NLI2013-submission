@@ -9,7 +9,7 @@ from sklearn.grid_search import GridSearchCV
 from sklearn.metrics import accuracy_score
 from sklearn.preprocessing import LabelEncoder
 from sklearn.svm import LinearSVC
-from data import load_nli_data
+from data import load_nli_data, ROOT_PATH
 
 from features import DEFAULT_FEATURES, TOKEN_COLLOCATION_FEATURE_ID, FeaturePipeline, SUFFIX_COLLOCATION_FEATURE_ID, extract_suffixes, TOKEN_FEATURE_ID, \
     CHAR_FEATURE_ID
@@ -81,10 +81,10 @@ def predict(model, input, input_frame, out_fn):
             csv_out.writerow([input_frame.file.ix[i], label])
 
 
-def do_fixed_folds():
+def do_fixed_folds(root_path=ROOT_PATH):
     logging.info("doing 10-fold")
     scores = []
-    for i, (tf_train, tf_test) in enumerate(get_folds_data()):
+    for i, (tf_train, tf_test) in enumerate(get_folds_data(root_path)):
         fold = i + 1
         logging.info("Fold %d" % fold)
 
@@ -135,7 +135,7 @@ if __name__ == '__main__':
     dev_y = lb.transform(dev.cat.values)
     y_full = lb.transform(full.cat.values)
 
-    folds_data = get_folds_data()
+    folds_data = get_folds_data(opts.data_path)
 
     for feature_set in feature_sets:
         if not feature_set_map.has_key(feature_set):
@@ -163,7 +163,7 @@ if __name__ == '__main__':
         predict(model, x_dev, dev, feature_set + '_dev.csv')
         predict(model, x_test, test, feature_set + '.csv')
 
-        scores = do_fixed_folds()
+        scores = do_fixed_folds(root_path=ROOT_PATH)
 
         print "%s 10-fold mean: %f, stddev: %f" % (feature_set, mean(scores), std(scores))
 
