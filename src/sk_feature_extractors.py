@@ -3,6 +3,7 @@ from itertools import combinations
 import numbers
 from numpy import unique, isnan, ones, zeros
 import numpy
+import scipy.sparse
 from sklearn.base import BaseEstimator, TransformerMixin
 from sklearn.feature_extraction.text import VectorizerMixin, CountVectorizer
 from tools import split_sentence_boundaries, sorted_tuple
@@ -156,6 +157,29 @@ class CollocationCountVectorizer(CountVectorizer):
 
         collocation_counts_per_doc = (Counter(self._analyze(doc)) for doc in raw_documents)
         return self._term_count_dicts_to_matrix(collocation_counts_per_doc)
+
+    def _term_count_dicts_to_matrix(self, term_count_dicts):
+        i_indices = []
+        j_indices = []
+        values = []
+        vocabulary = self.vocabulary_
+
+        for i, term_count_dict in enumerate(term_count_dicts):
+            for term, count in term_count_dict.iteritems():
+                j = vocabulary.get(term)
+                if j is not None:
+                    i_indices.append(i)
+                    j_indices.append(j)
+                    values.append(count)
+            # free memory as we go
+            term_count_dict.clear()
+
+        shape = (i + 1, max(vocabulary.itervalues()) + 1)
+        spmatrix = scipy.sparse.coo_matrix((values, (i_indices, j_indices)),
+                                 shape=shape, dtype=self.dtype)
+        if self.binary:
+            spmatrix.data.fill(1)
+        return spmatrix
 
 class FactorIndicators(BaseEstimator, TransformerMixin):
     def __init__(self, neg_label=0, pos_label=1, remove_nan=True, non_values=[]):
